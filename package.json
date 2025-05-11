@@ -1,0 +1,41 @@
+{
+  "name": "euclid-auto-bot",
+  "version": "1.0.0",
+  "description": "Automated token swap bot for Euclid Protocol on Arbitrum Sepolia testnet with a terminal-based UI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kazuha787/Euclid-Auto-Bot.git"
+  },
+  "keywords": [
+    "euclid",
+    "arbitrum",
+    "testnet",
+    "swap",
+    "automation",
+    "crypto",
+    "blockchain"
+  ],
+  "author": "Kazuha",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Kazuha787/Euclid-Auto-Bot/issues"
+  },
+  "homepage": "https://github.com/Kazuha787/Euclid-Auto-Bot#readme",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "gradient-string": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
