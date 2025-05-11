@@ -1,7 +1,5 @@
 # Euclid Auto Bot
 
-![Euclid Auto Bot Banner](https://via.placeholder.com/800x200.png?text=Euclid+Auto+Bot) <!-- Replace with actual banner if available -->
-
 **Euclid Auto Bot** is a Node.js-based automation tool designed for interacting with the Euclid Protocol on the Arbitrum Sepolia testnet. It facilitates automated token swaps (ETH to EUCLID, ETH to ANDR, or random swaps) with a user-friendly terminal-based UI powered by `blessed` and `blessed-contrib`. The bot supports multiple transactions, handles rate limits, and tracks transactions for airdrop eligibility.
 
 **Created By: Kazuha**
