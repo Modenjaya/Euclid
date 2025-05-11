@@ -1,3 +1,4 @@
+//EUCLID
 require('dotenv').config();
 const axios = require('axios');
 const ethers = require('ethers');
@@ -17,13 +18,40 @@ const asciiBannerLines = [
     '                                                                '
 ];
 
-// Menu Options
+// Menu Options (ditambahkan opsi Taiko Hekla)
 const menuOptions = [
     { label: 'ETH - EUCLID (Arbitrum)', value: 'eth_euclid' },
     { label: 'ETH - ANDR (Arbitrum)', value: 'eth_andr' },
     { label: 'Random Swap (Arbitrum)', value: 'random_swap' },
+    { label: 'ETH - EUCLID (Taiko Hekla)', value: 'eth_euclid_taiko' },
+    { label: 'ETH - ANDR (Taiko Hekla)', value: 'eth_andr_taiko' },
+    { label: 'Random Swap (Taiko Hekla)', value: 'random_swap_taiko' },
     { label: 'Exit', value: 'exit' }
 ];
+
+// Function untuk mendapatkan network details
+function getNetworkDetails(network) {
+    const networks = {
+        'arbitrum': {
+            name: 'Arbitrum Sepolia',
+            chainId: 421614,
+            rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+            contractAddress: '0x7f2CC9FE79961f628Da671Ac62d1f2896638edd5',
+            explorerUrl: 'https://sepolia.arbiscan.io/tx',
+            chainUid: 'arbitrum'
+        },
+        'taiko': {
+            name: 'Taiko Hekla',
+            chainId: 167009,
+            rpcUrl: 'https://rpc.hekla.taiko.xyz',
+            contractAddress: '0x7f2CC9FE79961f628Da671Ac62d1f2896638edd5', // Sama dengan Arbitrum (sesuaikan jika berbeda)
+            explorerUrl: 'https://explorer.hekla.taiko.xyz/tx',
+            chainUid: 'taiko'
+        }
+    };
+    
+    return networks[network];
+}
 
 // Transaction Data for Graph
 let transactionData = {
@@ -188,7 +216,7 @@ async function main() {
     const menuBox = blessed.list({
         top: asciiBannerLines.length,
         left: 0,
-        width: 22,
+        width: 26, // Sedikit diperlebar untuk akomodasi teks menu yang lebih panjang
         height: `70%-${asciiBannerLines.length}`,
         label: chalk.bold.hex('#00eaff')(' MENU '),
         tags: true,
@@ -215,8 +243,8 @@ async function main() {
     // Log Panel
     const panelBox = contrib.log({
         top: asciiBannerLines.length,
-        left: 23,
-        width: '78%-1',
+        left: 27, // Disesuaikan dengan perubahan lebar menu
+        width: '74%-1', // Disesuaikan dengan perubahan lebar menu
         height: `70%-${asciiBannerLines.length}`,
         label: chalk.bold.hex('#ff8c00')(' TRANSACTION LOGS '),
         tags: true,
@@ -334,32 +362,42 @@ async function main() {
                 return;
             }
 
+            // Deteksi network berdasarkan pilihan menu
+            const isTaiko = selected.value.includes('_taiko');
+            const network = isTaiko ? 'taiko' : 'arbitrum';
+            const networkDetails = getNetworkDetails(network);
+            
             const ethersVersion = parseInt(ethers.version.split('.')[0], 10);
             const isEthersV6 = ethersVersion >= 6;
+            
+            // Inisialisasi provider sesuai network
             let provider, wallet;
             if (isEthersV6) {
-                provider = new ethers.JsonRpcProvider('https://sepolia-rollup.arbitrum.io/rpc');
+                provider = new ethers.JsonRpcProvider(networkDetails.rpcUrl);
                 wallet = new ethers.Wallet(privateKey, provider);
             } else {
-                provider = new ethers.providers.JsonRpcProvider('https://sepolia-rollup.arbitrum.io/rpc');
+                provider = new ethers.providers.JsonRpcProvider(networkDetails.rpcUrl);
                 wallet = new ethers.Wallet(privateKey, provider);
             }
 
             const walletAddress = wallet.address;
             logger.info(`Connected to wallet: ${walletAddress}`, panelBox, screen);
-            logger.info('Network: Arbitrum Sepolia (Chain ID: 421614)', panelBox, screen);
+            logger.info(`Network: ${networkDetails.name} (Chain ID: ${networkDetails.chainId})`, panelBox, screen);
 
-            const contractAddress = '0x7f2CC9FE79961f628Da671Ac62d1f2896638edd5';
+            const contractAddress = networkDetails.contractAddress;
             const balance = await provider.getBalance(walletAddress);
             let requiredEth, gasEstimatePerTx, totalRequiredEth;
 
+            // Sesuaikan estimasi gas berdasarkan network
+            const gasMultiplier = isTaiko ? 1.5 : 1; // Gas di Taiko bisa lebih tinggi
+
             if (isEthersV6) {
                 requiredEth = ethers.parseEther(ethAmount.toString()) * BigInt(numTransactions);
-                gasEstimatePerTx = ethers.parseEther('0.00009794');
+                gasEstimatePerTx = ethers.parseEther('0.00009794') * BigInt(Math.floor(gasMultiplier * 100)) / BigInt(100);
                 totalRequiredEth = requiredEth + gasEstimatePerTx * BigInt(numTransactions);
             } else {
                 requiredEth = ethers.utils.parseEther((numTransactions * ethAmount).toString());
-                gasEstimatePerTx = ethers.utils.parseUnits('0.00009794', 'ether');
+                gasEstimatePerTx = ethers.utils.parseUnits('0.00009794', 'ether').mul(Math.floor(gasMultiplier * 100)).div(100);
                 totalRequiredEth = requiredEth.add(gasEstimatePerTx.mul(numTransactions));
             }
 
@@ -393,14 +431,16 @@ async function main() {
                 return;
             }
 
-            const isRandomSwap = selected.value === 'random_swap';
-            const swapType = selected.value === 'eth_euclid' ? '1' : selected.value === 'eth_andr' ? '2' : '3';
+            // Ambil tipe swap tanpa suffix _taiko
+            const baseValue = selected.value.replace('_taiko', '');
+            const isRandomSwap = baseValue === 'random_swap';
+            const swapType = baseValue === 'eth_euclid' ? '1' : baseValue === 'eth_andr' ? '2' : '3';
 
             for (let i = 0; i < numTransactions; i++) {
                 const isEuclidSwap = isRandomSwap ? (i % 2 === 0) : swapType === '1';
                 const swapDescription = isEuclidSwap ? 'ETH to EUCLID' : 'ETH to ANDR';
 
-                logger.loading(`Transaction ${i + 1}/${numTransactions} (${swapDescription}):`, panelBox, screen);
+                logger.loading(`Transaction ${i + 1}/${numTransactions} (${swapDescription} on ${networkDetails.name}):`, panelBox, screen);
                 try {
                     logger.step('Fetching swap quote for amount_out...', panelBox, screen);
 
@@ -422,7 +462,7 @@ async function main() {
                         slippage: '500',
                         cross_chain_addresses: [{ user: { address: targetAddress, chain_uid: targetChainUid }, limit: { less_than_or_equal: defaultAmountOut } }],
                         partnerFee: { partner_fee_bps: 10, recipient: walletAddress },
-                        sender: { address: walletAddress, chain_uid: 'arbitrum' },
+                        sender: { address: walletAddress, chain_uid: networkDetails.chainUid },
                         swap_path: {
                             path: [{
                                 route: swapRoute,
@@ -473,7 +513,7 @@ async function main() {
                         slippage: '500',
                         cross_chain_addresses: [{ user: { address: targetAddress, chain_uid: targetChainUid }, limit: { less_than_or_equal: amountOut } }],
                         partnerFee: { partner_fee_bps: 10, recipient: walletAddress },
-                        sender: { address: walletAddress, chain_uid: 'arbitrum' },
+                        sender: { address: walletAddress, chain_uid: networkDetails.chainUid },
                         swap_path: {
                             path: [{
                                 route: swapRoute,
@@ -527,6 +567,10 @@ async function main() {
 
                     logger.loading('Executing swap transaction...', panelBox, screen);
 
+                    // Gunakan gas yang lebih tinggi untuk Taiko
+                    const priorityFee = isTaiko ? '0.2' : '0.1';
+                    const maxFee = isTaiko ? '0.2' : '0.1';
+
                     const tx = {
                         to: contractAddress,
                         value: isEthersV6
@@ -535,8 +579,8 @@ async function main() {
                         data: txData,
                         gasLimit: gasLimit,
                         nonce: await provider.getTransactionCount(walletAddress, 'pending'),
-                        maxFeePerGas: isEthersV6 ? ethers.parseUnits('0.1', 'gwei') : ethers.utils.parseUnits('0.1', 'gwei'),
-                        maxPriorityFeePerGas: isEthersV6 ? ethers.parseUnits('0.1', 'gwei') : ethers.utils.parseUnits('0.1', 'gwei')
+                        maxFeePerGas: isEthersV6 ? ethers.parseUnits(maxFee, 'gwei') : ethers.utils.parseUnits(maxFee, 'gwei'),
+                        maxPriorityFeePerGas: isEthersV6 ? ethers.parseUnits(priorityFee, 'gwei') : ethers.utils.parseUnits(priorityFee, 'gwei')
                     };
 
                     try {
@@ -566,7 +610,7 @@ async function main() {
 
                         await retry(
                             () => axios.post('https://testnet.euclidswap.io/api/intract-track', {
-                                chain_uid: 'arbitrum',
+                                chain_uid: networkDetails.chainUid,
                                 tx_hash: txResponse.hash,
                                 wallet_address: walletAddress,
                                 referral_code: 'EUCLIDEAN667247',
@@ -583,7 +627,7 @@ async function main() {
                         );
 
                         logger.success('Transaction tracked with Euclid', panelBox, screen);
-                        logger.step(`View transaction: https://sepolia.arbiscan.io/tx/${txResponse.hash}`, panelBox, screen);
+                        logger.step(`View transaction: ${networkDetails.explorerUrl}/${txResponse.hash}`, panelBox, screen);
                     } else {
                         logger.error('Transaction failed!', panelBox, screen);
                     }
@@ -626,6 +670,4 @@ async function main() {
 }
 
 main().catch((error) => {
-    console.error(`Fatal error: ${error.message}`);
-    process.exit(1);
-});
+    console.error(`Fatal error: ${error
