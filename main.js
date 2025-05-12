@@ -613,7 +613,7 @@ async function main() {
                                 chain_uid: networkDetails.chainUid,
                                 tx_hash: txResponse.hash,
                                 wallet_address: walletAddress,
-                                referral_code: 'EUCLIDEAN667247',
+                                referral_code: 'EUCLIDEAN291889',
                                 type: 'swap'
                             }, {
                                 headers: {
@@ -670,4 +670,6 @@ async function main() {
 }
 
 main().catch((error) => {
-    console.error(`Fatal error: ${error
+    console.error(`Fatal error: ${error.message}`);
+    process.exit(1);
+});
